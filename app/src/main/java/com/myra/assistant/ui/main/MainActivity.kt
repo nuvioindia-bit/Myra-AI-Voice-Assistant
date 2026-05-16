@@ -114,6 +114,7 @@ class MainActivity : AppCompatActivity() {
     orbView = findViewById(R.id.orbView)
     waveformView = findViewById(R.id.waveformView)
     statusText = findViewById(R.id.statusText)
+    statusText.text = getString(R.string.tap_to_speak)
     micButton = findViewById(R.id.micButton)
     settingsBtn = findViewById(R.id.settingsBtn)
     chatRecycler = findViewById(R.id.chatRecycler)
@@ -169,7 +170,7 @@ class MainActivity : AppCompatActivity() {
     geminiLive.onSetupComplete = {
       runOnUiThread {
         audioEngine.start()
-        statusText.text = "Connected — Tap to speak"
+        statusText.text = getString(R.string.connected_tap_to_speak)
       }
     }
     geminiLive.onInputTranscript = { text ->
@@ -195,10 +196,15 @@ class MainActivity : AppCompatActivity() {
     geminiLive.onError = { error ->
       runOnUiThread {
         Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
-        statusText.text = "Error — Check settings"
+        statusText.text = getString(R.string.error_check_settings)
       }
     }
-    geminiLive.connect()
+    val apiKey = prefs.getString("api_key", "") ?: ""
+    if (apiKey.isBlank()) {
+      statusText.text = getString(R.string.api_key_required)
+    } else {
+      geminiLive.connect()
+    }
   }
 
   private fun setupChat() {
@@ -363,6 +369,14 @@ class MainActivity : AppCompatActivity() {
     if (intent.getBooleanExtra("INCOMING_CALL", false)) {
       val callerName = intent.getStringExtra("CALLER_NAME") ?: "Unknown"
       announceCall(callerName)
+    }
+  }
+
+  override fun onResume() {
+    super.onResume()
+    val apiKey = prefs.getString("api_key", "") ?: ""
+    if (apiKey.isNotBlank() && !geminiLive.isConnected) {
+      geminiLive.connect()
     }
   }
 

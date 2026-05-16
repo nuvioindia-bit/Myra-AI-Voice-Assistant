@@ -39,7 +39,8 @@ class GeminiLiveClient(
   var onTurnComplete: (() -> Unit)? = null
   var onError: ((String) -> Unit)? = null
 
-  private var isConnected = false
+  var isConnected = false
+    private set
   private var isSpeaking = false
   private val silentPcm: ByteArray by lazy {
     ByteArray(3200) { 0 } // 16000Hz, 16-bit, 100ms of silence
@@ -49,7 +50,6 @@ class GeminiLiveClient(
     if (isConnected) return
     val apiKey = prefs.getString("api_key", "") ?: ""
     if (apiKey.isBlank()) {
-      onError?.invoke("API Key not configured")
       return
     }
 
