@@ -24,6 +24,7 @@ import com.myra.assistant.ui.main.OrbAnimationView
 class MyraOverlayService : Service() {
 
   companion object {
+    const val TAG = "MyraOverlayService"
     const val CHANNEL_ID = "myra_overlay_channel"
     const val NOTIFICATION_ID = 3
     var isRunning = false
