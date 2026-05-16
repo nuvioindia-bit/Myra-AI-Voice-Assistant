@@ -20,6 +20,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.core.content.ContextCompat
 import com.myra.assistant.R
 import com.myra.assistant.service.AccessibilityHelperService
 import org.json.JSONArray
@@ -228,12 +229,18 @@ class SettingsActivity : AppCompatActivity() {
   }
 
   private fun updateAccessibilityStatus() {
-    val enabled = AccessibilityHelperService.isEnabled(this)
-    accessibilityStatus.text = if (enabled) "Accessibility: Enabled" else "Accessibility: Disabled"
-    accessibilityStatus.setTextColor(
-      if (enabled) getColor(android.R.color.holo_green_dark)
-      else getColor(android.R.color.holo_red_dark)
-    )
+    try {
+      val enabled = AccessibilityHelperService.isEnabled(this)
+      accessibilityStatus.text = if (enabled) "Accessibility: Enabled" else "Accessibility: Disabled"
+      accessibilityStatus.setTextColor(
+        ContextCompat.getColor(
+          this,
+          if (enabled) android.R.color.holo_green_dark else android.R.color.holo_red_dark
+        )
+      )
+    } catch (e: Exception) {
+      accessibilityStatus.text = "Accessibility: Unknown"
+    }
   }
 
   override fun onResume() {

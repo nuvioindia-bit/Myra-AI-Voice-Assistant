@@ -1,3 +1,14 @@
 # ProGuard rules for MYRA
 -keep class com.myra.assistant.** { *; }
 -keepclassmembers class com.myra.assistant.** { *; }
+-keepattributes *Annotation*
+-keepattributes Signature
+-keepattributes Exceptions
+-keepattributes InnerClasses
+-keepattributes EnclosingMethod
+-dontwarn okhttp3.**
+-dontwarn org.json.**
+-dontwarn kotlinx.coroutines.**
+-keep class kotlinx.coroutines.** { *; }
+-keep class okhttp3.** { *; }
+-keep class org.json.** { *; }

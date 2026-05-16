@@ -117,8 +117,12 @@ class MyraOverlayService : Service() {
   }
 
   private fun hideOverlay() {
-    overlayView?.let {
-      windowManager?.removeView(it)
+    try {
+      overlayView?.let {
+        windowManager?.removeView(it)
+      }
+    } catch (e: Exception) {
+      Log.e(TAG, "Error removing overlay", e)
     }
     overlayView = null
     isRunning = false
@@ -126,7 +130,11 @@ class MyraOverlayService : Service() {
 
   override fun onDestroy() {
     super.onDestroy()
-    hideOverlay()
+    try {
+      hideOverlay()
+    } catch (e: Exception) {
+      Log.e(TAG, "Error destroying overlay service", e)
+    }
   }
 
   private fun createNotificationChannel() {

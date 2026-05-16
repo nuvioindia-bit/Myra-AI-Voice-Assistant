@@ -38,48 +38,76 @@ class AccessibilityHelperService : AccessibilityService() {
   }
 
   fun closeCurrentApp() {
-    performGlobalAction(GLOBAL_ACTION_HOME)
+    try {
+      performGlobalAction(GLOBAL_ACTION_HOME)
+    } catch (e: Exception) {
+      Log.e(TAG, "Error closing app", e)
+    }
   }
 
   fun goBack() {
-    performGlobalAction(GLOBAL_ACTION_BACK)
+    try {
+      performGlobalAction(GLOBAL_ACTION_BACK)
+    } catch (e: Exception) {
+      Log.e(TAG, "Error going back", e)
+    }
   }
 
   fun clickOnText(text: String) {
     val root = rootInActiveWindow ?: return
-    val node = findNodeByText(root, text)
-    if (node != null) {
-      val clickable = if (node.isClickable) node else findClickableParent(node)
-      clickable?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+    try {
+      val node = findNodeByText(root, text)
+      if (node != null) {
+        val clickable = if (node.isClickable) node else findClickableParent(node)
+        clickable?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+      }
+    } catch (e: Exception) {
+      Log.e(TAG, "Error clicking text", e)
+    } finally {
+      try { root.recycle() } catch (_: Exception) {}
     }
-    root.recycle()
   }
 
   fun typeText(text: String) {
     val root = rootInActiveWindow ?: return
-    val editText = findEditText(root)
-    if (editText != null) {
-      val args = android.os.Bundle().apply {
-        putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
+    try {
+      val editText = findEditText(root)
+      if (editText != null) {
+        val args = android.os.Bundle().apply {
+          putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
+        }
+        editText.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+        editText.recycle()
       }
-      editText.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
-      editText.recycle()
+    } catch (e: Exception) {
+      Log.e(TAG, "Error typing text", e)
+    } finally {
+      try { root.recycle() } catch (_: Exception) {}
     }
-    root.recycle()
   }
 
   fun scrollDown() {
     val root = rootInActiveWindow ?: return
-    val scrollable = findScrollableNode(root)
-    scrollable?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
-    root.recycle()
+    try {
+      val scrollable = findScrollableNode(root)
+      scrollable?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+    } catch (e: Exception) {
+      Log.e(TAG, "Error scrolling down", e)
+    } finally {
+      try { root.recycle() } catch (_: Exception) {}
+    }
   }
 
   fun scrollUp() {
     val root = rootInActiveWindow ?: return
-    val scrollable = findScrollableNode(root)
-    scrollable?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
-    root.recycle()
+    try {
+      val scrollable = findScrollableNode(root)
+      scrollable?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
+    } catch (e: Exception) {
+      Log.e(TAG, "Error scrolling up", e)
+    } finally {
+      try { root.recycle() } catch (_: Exception) {}
+    }
   }
 
   private fun findNodeByText(root: AccessibilityNodeInfo, text: String): AccessibilityNodeInfo? {

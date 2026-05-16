@@ -13,7 +13,6 @@ import android.os.Looper
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
-import android.speech.tts.TextToSpeech
 import android.util.Log
 import android.view.View
 import android.view.animation.AlphaAnimation
@@ -68,46 +67,110 @@ class MainActivity : AppCompatActivity() {
 
   private var callStt: SpeechRecognizer? = null
   private val handler = Handler(Looper.getMainLooper())
+  private var receiverRegistered = false
 
   private val callEndedReceiver = object : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
-      if (intent?.action == "com.myra.CALL_ENDED") {
-        isInCallMode = false
-        setActiveMode(false)
+      try {
+        if (intent?.action == "com.myra.CALL_ENDED") {
+          isInCallMode = false
+          setActiveMode(false)
+        }
+      } catch (e: Exception) {
+        Log.e(TAG, "Error in call ended receiver", e)
       }
     }
   }
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    setContentView(R.layout.activity_main)
-
-    prefs = getSharedPreferences("myra_prefs", Context.MODE_PRIVATE)
-    initViews()
-    checkPermissions()
-    setupAudioEngine()
-    setupGeminiLive()
-    setupChat()
-    setupObservers()
-    setupClickListeners()
-
-    // Start call monitor service
-    startService(Intent(this, CallMonitorService::class.java))
-
-    // Register call ended receiver
-    ContextCompat.registerReceiver(
-      this, callEndedReceiver,
-      IntentFilter("com.myra.CALL_ENDED"),
-      ContextCompat.RECEIVER_EXPORTED
-    )
-
-    // Handle incoming call intent
-    if (intent.getBooleanExtra("INCOMING_CALL", false)) {
-      val callerName = intent.getStringExtra("CALLER_NAME") ?: "Unknown"
-      announceCall(callerName)
+    try {
+      setContentView(R.layout.activity_main)
+    } catch (e: Exception) {
+      Log.e(TAG, "Error setting content view", e)
+      Toast.makeText(this, "Error loading UI", Toast.LENGTH_LONG).show()
+      finish()
+      return
     }
 
-    updateSystemInfo()
+    prefs = getSharedPreferences("myra_prefs", Context.MODE_PRIVATE)
+
+    try {
+      initViews()
+    } catch (e: Exception) {
+      Log.e(TAG, "Error initializing views", e)
+      Toast.makeText(this, "UI initialization failed", Toast.LENGTH_LONG).show()
+      finish()
+      return
+    }
+
+    try {
+      checkPermissions()
+    } catch (e: Exception) {
+      Log.e(TAG, "Error checking permissions", e)
+    }
+
+    try {
+      setupAudioEngine()
+    } catch (e: Exception) {
+      Log.e(TAG, "Error setting up audio engine", e)
+    }
+
+    try {
+      setupGeminiLive()
+    } catch (e: Exception) {
+      Log.e(TAG, "Error setting up Gemini", e)
+    }
+
+    try {
+      setupChat()
+    } catch (e: Exception) {
+      Log.e(TAG, "Error setting up chat", e)
+    }
+
+    try {
+      setupObservers()
+    } catch (e: Exception) {
+      Log.e(TAG, "Error setting up observers", e)
+    }
+
+    try {
+      setupClickListeners()
+    } catch (e: Exception) {
+      Log.e(TAG, "Error setting up click listeners", e)
+    }
+
+    try {
+      startService(Intent(this, CallMonitorService::class.java))
+    } catch (e: Exception) {
+      Log.e(TAG, "Error starting CallMonitorService", e)
+    }
+
+    try {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        registerReceiver(callEndedReceiver, IntentFilter("com.myra.CALL_ENDED"), ContextCompat.RECEIVER_EXPORTED)
+      } else {
+        registerReceiver(callEndedReceiver, IntentFilter("com.myra.CALL_ENDED"))
+      }
+      receiverRegistered = true
+    } catch (e: Exception) {
+      Log.e(TAG, "Error registering receiver", e)
+    }
+
+    try {
+      if (intent.getBooleanExtra("INCOMING_CALL", false)) {
+        val callerName = intent.getStringExtra("CALLER_NAME") ?: "Unknown"
+        announceCall(callerName)
+      }
+    } catch (e: Exception) {
+      Log.e(TAG, "Error handling incoming call intent", e)
+    }
+
+    try {
+      updateSystemInfo()
+    } catch (e: Exception) {
+      Log.e(TAG, "Error updating system info", e)
+    }
   }
 
   private fun initViews() {
@@ -130,9 +193,7 @@ class MainActivity : AppCompatActivity() {
       Manifest.permission.CALL_PHONE,
       Manifest.permission.READ_CONTACTS,
       Manifest.permission.READ_PHONE_STATE,
-      Manifest.permission.READ_CALL_LOG,
-      Manifest.permission.SEND_SMS,
-      Manifest.permission.INTERNET
+      Manifest.permission.SEND_SMS
     )
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
       permissions.add(Manifest.permission.POST_NOTIFICATIONS)
@@ -149,243 +210,400 @@ class MainActivity : AppCompatActivity() {
   }
 
   private fun setupAudioEngine() {
-    audioEngine = AudioEngine()
-    audioEngine.onAudioChunk = { chunk ->
-      if (isActive && !isInCallMode) {
-        geminiLive.sendAudioChunk(chunk)
-      }
-    }
-    audioEngine.onAmplitudeChanged = { rms ->
-      runOnUiThread {
-        waveformView.setAmplitude(rms)
-        if (rms > 0.1f) {
-          orbView.setState(OrbAnimationView.State.LISTENING)
+    try {
+      audioEngine = AudioEngine()
+      audioEngine.onAudioChunk = { chunk ->
+        try {
+          if (isActive && !isInCallMode) {
+            geminiLive.sendAudioChunk(chunk)
+          }
+        } catch (e: Exception) {
+          Log.e(TAG, "Error sending audio chunk", e)
         }
       }
+      audioEngine.onAmplitudeChanged = { rms ->
+        runOnUiThread {
+          try {
+            waveformView.setAmplitude(rms)
+            if (rms > 0.1f) {
+              orbView.setState(OrbAnimationView.State.LISTENING)
+            }
+          } catch (e: Exception) {
+            Log.e(TAG, "Error updating amplitude", e)
+          }
+        }
+      }
+    } catch (e: Exception) {
+      Log.e(TAG, "Error creating audio engine", e)
     }
   }
 
   private fun setupGeminiLive() {
-    geminiLive = GeminiLiveClient(this, prefs)
-    geminiLive.onSetupComplete = {
-      runOnUiThread {
-        audioEngine.start()
-        statusText.text = getString(R.string.connected_tap_to_speak)
+    try {
+      geminiLive = GeminiLiveClient(this, prefs)
+      geminiLive.onSetupComplete = {
+        runOnUiThread {
+          try {
+            audioEngine.start()
+            statusText.text = getString(R.string.connected_tap_to_speak)
+          } catch (e: Exception) {
+            Log.e(TAG, "Error on setup complete", e)
+          }
+        }
       }
-    }
-    geminiLive.onInputTranscript = { text ->
-      inputBuffer.append(text)
-    }
-    geminiLive.onOutputTranscript = { text ->
-      outputBuffer.append(text)
-      runOnUiThread {
-        orbView.setState(OrbAnimationView.State.SPEAKING)
+      geminiLive.onInputTranscript = { text ->
+        try {
+          inputBuffer.append(text)
+        } catch (e: Exception) {
+          Log.e(TAG, "Error on input transcript", e)
+        }
       }
-    }
-    geminiLive.onAudioData = { data ->
-      audioEngine.queueAudio(data)
-      audioEngine.setSuppressed(true)
-    }
-    geminiLive.onTurnComplete = {
-      audioEngine.setSuppressed(false)
-      runOnUiThread {
-        flushTranscripts()
-        orbView.setState(OrbAnimationView.State.IDLE)
+      geminiLive.onOutputTranscript = { text ->
+        try {
+          outputBuffer.append(text)
+          runOnUiThread {
+            orbView.setState(OrbAnimationView.State.SPEAKING)
+          }
+        } catch (e: Exception) {
+          Log.e(TAG, "Error on output transcript", e)
+        }
       }
-    }
-    geminiLive.onError = { error ->
-      runOnUiThread {
-        Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
-        statusText.text = getString(R.string.error_check_settings)
+      geminiLive.onAudioData = { data ->
+        try {
+          audioEngine.queueAudio(data)
+          audioEngine.setSuppressed(true)
+        } catch (e: Exception) {
+          Log.e(TAG, "Error on audio data", e)
+        }
       }
-    }
-    val apiKey = prefs.getString("api_key", "") ?: ""
-    if (apiKey.isBlank()) {
-      statusText.text = getString(R.string.api_key_required)
-    } else {
-      geminiLive.connect()
+      geminiLive.onTurnComplete = {
+        try {
+          audioEngine.setSuppressed(false)
+          runOnUiThread {
+            flushTranscripts()
+            orbView.setState(OrbAnimationView.State.IDLE)
+          }
+        } catch (e: Exception) {
+          Log.e(TAG, "Error on turn complete", e)
+        }
+      }
+      geminiLive.onError = { error ->
+        runOnUiThread {
+          try {
+            Toast.makeText(this@MainActivity, error, Toast.LENGTH_SHORT).show()
+            statusText.text = getString(R.string.error_check_settings)
+          } catch (e: Exception) {
+            Log.e(TAG, "Error displaying error", e)
+          }
+        }
+      }
+      val apiKey = prefs.getString("api_key", "") ?: ""
+      if (apiKey.isBlank()) {
+        statusText.text = getString(R.string.api_key_required)
+      } else {
+        geminiLive.connect()
+      }
+    } catch (e: Exception) {
+      Log.e(TAG, "Error setting up Gemini Live", e)
     }
   }
 
   private fun setupChat() {
-    chatAdapter = ChatAdapter()
-    chatRecycler.layoutManager = LinearLayoutManager(this).apply {
-      stackFromEnd = true
+    try {
+      chatAdapter = ChatAdapter()
+      chatRecycler.layoutManager = LinearLayoutManager(this).apply {
+        stackFromEnd = true
+      }
+      chatRecycler.adapter = chatAdapter
+    } catch (e: Exception) {
+      Log.e(TAG, "Error setting up chat", e)
     }
-    chatRecycler.adapter = chatAdapter
   }
 
   private fun setupObservers() {
-    viewModel.commandResult.observe(this) { result ->
-      result?.let {
-        chatAdapter.addMessage(ChatMessage(it, false))
-        geminiLive.sendText(it)
+    try {
+      viewModel.commandResult.observe(this) { result ->
+        try {
+          result?.let {
+            chatAdapter.addMessage(ChatMessage(it, false))
+            geminiLive.sendText(it)
+          }
+        } catch (e: Exception) {
+          Log.e(TAG, "Error in command result observer", e)
+        }
       }
+    } catch (e: Exception) {
+      Log.e(TAG, "Error setting up observers", e)
     }
   }
 
   private fun setupClickListeners() {
     micButton.setOnClickListener {
-      if (isMuted) {
-        isMuted = false
-        audioEngine.setMuted(false)
-        micButton.setImageResource(android.R.drawable.ic_btn_speak_now)
-        statusText.text = "Tap karke bolo"
-      } else {
-        isActive = !isActive
-        if (isActive) {
-          orbView.setState(OrbAnimationView.State.ACTIVE)
-          statusText.text = "Listening..."
-          showRedOverlay(true)
+      try {
+        if (isMuted) {
+          isMuted = false
+          audioEngine.setMuted(false)
+          micButton.setImageResource(android.R.drawable.ic_btn_speak_now)
+          statusText.text = getString(R.string.tap_to_speak)
         } else {
-          orbView.setState(OrbAnimationView.State.IDLE)
-          statusText.text = "Tap karke bolo"
-          showRedOverlay(false)
+          isActive = !isActive
+          if (isActive) {
+            orbView.setState(OrbAnimationView.State.ACTIVE)
+            statusText.text = "Listening..."
+            showRedOverlay(true)
+          } else {
+            orbView.setState(OrbAnimationView.State.IDLE)
+            statusText.text = getString(R.string.tap_to_speak)
+            showRedOverlay(false)
+          }
         }
+      } catch (e: Exception) {
+        Log.e(TAG, "Error on mic click", e)
       }
     }
 
     micButton.setOnLongClickListener {
-      audioEngine.clearPlaybackQueue()
-      geminiLive.interrupt()
-      orbView.setState(OrbAnimationView.State.IDLE)
-      Toast.makeText(this, "Interrupted", Toast.LENGTH_SHORT).show()
+      try {
+        audioEngine.clearPlaybackQueue()
+        geminiLive.interrupt()
+        orbView.setState(OrbAnimationView.State.IDLE)
+        Toast.makeText(this, "Interrupted", Toast.LENGTH_SHORT).show()
+      } catch (e: Exception) {
+        Log.e(TAG, "Error on mic long click", e)
+      }
       true
     }
 
     settingsBtn.setOnClickListener {
-      startActivity(Intent(this, SettingsActivity::class.java))
+      try {
+        startActivity(Intent(this, SettingsActivity::class.java))
+      } catch (e: Exception) {
+        Log.e(TAG, "Error opening settings", e)
+        Toast.makeText(this, "Cannot open settings", Toast.LENGTH_SHORT).show()
+      }
     }
   }
 
   private fun flushTranscripts() {
-    val inputText = inputBuffer.toString().trim()
-    val outputText = outputBuffer.toString().trim()
-    inputBuffer.clear()
-    outputBuffer.clear()
+    try {
+      val inputText = inputBuffer.toString().trim()
+      val outputText = outputBuffer.toString().trim()
+      inputBuffer.clear()
+      outputBuffer.clear()
 
-    if (inputText.isNotBlank()) {
-      chatAdapter.addMessage(ChatMessage(inputText, true))
-      val command = CommandParser.parse(inputText)
-      command?.let { viewModel.executeCommand(it) }
-    }
-    if (outputText.isNotBlank()) {
-      chatAdapter.addMessage(ChatMessage(outputText, false))
+      if (inputText.isNotBlank()) {
+        chatAdapter.addMessage(ChatMessage(inputText, true))
+        val command = CommandParser.parse(inputText)
+        command?.let { viewModel.executeCommand(it) }
+      }
+      if (outputText.isNotBlank()) {
+        chatAdapter.addMessage(ChatMessage(outputText, false))
+      }
+    } catch (e: Exception) {
+      Log.e(TAG, "Error flushing transcripts", e)
     }
   }
 
   private fun showRedOverlay(show: Boolean) {
-    val anim = AlphaAnimation(
-      if (show) 0f else 0.08f,
-      if (show) 0.08f else 0f
-    )
-    anim.duration = if (show) 300 else 500
-    anim.fillAfter = true
-    redOverlay.startAnimation(anim)
+    try {
+      val anim = AlphaAnimation(
+        if (show) 0f else 0.08f,
+        if (show) 0.08f else 0f
+      )
+      anim.duration = if (show) 300 else 500
+      anim.fillAfter = true
+      redOverlay.startAnimation(anim)
+    } catch (e: Exception) {
+      Log.e(TAG, "Error showing red overlay", e)
+    }
   }
 
   fun announceCall(callerName: String) {
-    isInCallMode = true
-    setActiveMode(true)
-    val prompt = "Sir, $callerName ka call aa raha hai. Uthau ya reject karu?"
-    geminiLive.sendText(prompt)
+    try {
+      isInCallMode = true
+      setActiveMode(true)
+      val prompt = "Sir, $callerName ka call aa raha hai. Uthau ya reject karu?"
+      geminiLive.sendText(prompt)
 
-    handler.postDelayed({
-      startCallSTT()
-    }, CALL_STT_TIMEOUT_MS)
+      handler.postDelayed({
+        startCallSTT()
+      }, CALL_STT_TIMEOUT_MS)
+    } catch (e: Exception) {
+      Log.e(TAG, "Error announcing call", e)
+    }
   }
 
   private fun startCallSTT() {
-    if (!isInCallMode) return
-    callStt = SpeechRecognizer.createSpeechRecognizer(this)
-    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-      putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-      putExtra(RecognizerIntent.EXTRA_LANGUAGE, "hi-IN")
-      putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-    }
-    callStt?.setRecognitionListener(object : RecognitionListener {
-      override fun onReadyForSpeech(params: Bundle?) {}
-      override fun onBeginningOfSpeech() {}
-      override fun onRmsChanged(rmsdB: Float) {}
-      override fun onBufferReceived(buffer: ByteArray?) {}
-      override fun onEndOfSpeech() {}
-      override fun onError(error: Int) {
-        startCallSTT()
+    try {
+      if (!isInCallMode) return
+      if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+        Log.w(TAG, "Speech recognition not available")
+        return
       }
-      override fun onResults(results: Bundle?) {
-        val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-        val text = matches?.firstOrNull()?.lowercase() ?: ""
-        when {
-          text.contains("uthao") || text.contains("haan") || text.contains("accept") -> {
-            viewModel.acceptCall()
-            geminiLive.sendText("Call utha liya hai Sir.")
+      callStt = SpeechRecognizer.createSpeechRecognizer(this)
+      val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+        putExtra(RecognizerIntent.EXTRA_LANGUAGE, "hi-IN")
+        putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+      }
+      callStt?.setRecognitionListener(object : RecognitionListener {
+        override fun onReadyForSpeech(params: Bundle?) {}
+        override fun onBeginningOfSpeech() {}
+        override fun onRmsChanged(rmsdB: Float) {}
+        override fun onBufferReceived(buffer: ByteArray?) {}
+        override fun onEndOfSpeech() {}
+        override fun onError(error: Int) {
+          try {
+            startCallSTT()
+          } catch (e: Exception) {
+            Log.e(TAG, "Error restarting STT", e)
           }
-          text.contains("reject") || text.contains("nahi") || text.contains("mat") -> {
-            viewModel.rejectCall()
-            geminiLive.sendText("Call reject kar diya Sir.")
-          }
-          else -> startCallSTT()
         }
-        isInCallMode = false
-        setActiveMode(false)
-      }
-      override fun onPartialResults(partialResults: Bundle?) {}
-      override fun onEvent(eventType: Int, params: Bundle?) {}
-    })
-    callStt?.startListening(intent)
+        override fun onResults(results: Bundle?) {
+          try {
+            val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+            val text = matches?.firstOrNull()?.lowercase() ?: ""
+            when {
+              text.contains("uthao") || text.contains("haan") || text.contains("accept") -> {
+                viewModel.acceptCall()
+                geminiLive.sendText("Call utha liya hai Sir.")
+              }
+              text.contains("reject") || text.contains("nahi") || text.contains("mat") -> {
+                viewModel.rejectCall()
+                geminiLive.sendText("Call reject kar diya Sir.")
+              }
+              else -> startCallSTT()
+            }
+            isInCallMode = false
+            setActiveMode(false)
+          } catch (e: Exception) {
+            Log.e(TAG, "Error in STT results", e)
+          }
+        }
+        override fun onPartialResults(partialResults: Bundle?) {}
+        override fun onEvent(eventType: Int, params: Bundle?) {}
+      })
+      callStt?.startListening(intent)
+    } catch (e: Exception) {
+      Log.e(TAG, "Error starting call STT", e)
+    }
   }
 
   private fun setActiveMode(active: Boolean) {
-    isActive = active
-    showRedOverlay(active)
-    if (active) {
-      orbView.setState(OrbAnimationView.State.ACTIVE)
-    } else {
-      orbView.setState(OrbAnimationView.State.IDLE)
+    try {
+      isActive = active
+      showRedOverlay(active)
+      if (active) {
+        orbView.setState(OrbAnimationView.State.ACTIVE)
+      } else {
+        orbView.setState(OrbAnimationView.State.IDLE)
+      }
+    } catch (e: Exception) {
+      Log.e(TAG, "Error setting active mode", e)
     }
   }
 
   private fun updateSystemInfo() {
-    val batteryStatus = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-    val level = batteryStatus?.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1) ?: 0
-    val scale = batteryStatus?.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, -1) ?: 100
-    val pct = (level * 100 / scale)
-    batteryText.text = "BATT: $pct%"
+    try {
+      val batteryStatus = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED)
+      } else {
+        registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+      }
+      val level = batteryStatus?.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1) ?: 0
+      val scale = batteryStatus?.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, -1) ?: 100
+      val pct = if (scale > 0) (level * 100 / scale) else 0
+      batteryText.text = "BATT: $pct%"
+    } catch (e: Exception) {
+      Log.e(TAG, "Error reading battery", e)
+      batteryText.text = "BATT: --%"
+    }
 
-    val memInfo = android.app.ActivityManager.MemoryInfo()
-    val am = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
-    am.getMemoryInfo(memInfo)
-    val availMB = memInfo.availMem / (1024 * 1024)
-    ramText.text = "RAM: ${availMB}MB"
+    try {
+      val memInfo = android.app.ActivityManager.MemoryInfo()
+      val am = getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
+      am?.getMemoryInfo(memInfo)
+      val availMB = memInfo.availMem / (1024 * 1024)
+      ramText.text = "RAM: ${availMB}MB"
+    } catch (e: Exception) {
+      Log.e(TAG, "Error reading memory", e)
+      ramText.text = "RAM: --"
+    }
 
-    timeText.text = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
-      .format(java.util.Date())
+    try {
+      timeText.text = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+        .format(java.util.Date())
+    } catch (e: Exception) {
+      Log.e(TAG, "Error updating time", e)
+      timeText.text = "--:--"
+    }
 
+    handler.removeCallbacksAndMessages(null)
     handler.postDelayed({ updateSystemInfo() }, 30000)
   }
 
   override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)
-    if (intent.getBooleanExtra("INCOMING_CALL", false)) {
-      val callerName = intent.getStringExtra("CALLER_NAME") ?: "Unknown"
-      announceCall(callerName)
+    try {
+      if (intent.getBooleanExtra("INCOMING_CALL", false)) {
+        val callerName = intent.getStringExtra("CALLER_NAME") ?: "Unknown"
+        announceCall(callerName)
+      }
+    } catch (e: Exception) {
+      Log.e(TAG, "Error in onNewIntent", e)
     }
   }
 
   override fun onResume() {
     super.onResume()
-    val apiKey = prefs.getString("api_key", "") ?: ""
-    if (apiKey.isNotBlank() && !geminiLive.isConnected) {
-      geminiLive.connect()
+    try {
+      val apiKey = prefs.getString("api_key", "") ?: ""
+      if (apiKey.isNotBlank() && !geminiLive.isConnected) {
+        geminiLive.connect()
+      }
+    } catch (e: Exception) {
+      Log.e(TAG, "Error in onResume", e)
+    }
+  }
+
+  override fun onPause() {
+    super.onPause()
+    try {
+      handler.removeCallbacksAndMessages(null)
+    } catch (e: Exception) {
+      Log.e(TAG, "Error in onPause", e)
     }
   }
 
   override fun onDestroy() {
     super.onDestroy()
-    geminiLive.disconnect()
-    audioEngine.stop()
-    callStt?.destroy()
-    unregisterReceiver(callEndedReceiver)
-    handler.removeCallbacksAndMessages(null)
+    try {
+      geminiLive.disconnect()
+    } catch (e: Exception) {
+      Log.e(TAG, "Error disconnecting Gemini", e)
+    }
+    try {
+      audioEngine.stop()
+    } catch (e: Exception) {
+      Log.e(TAG, "Error stopping audio engine", e)
+    }
+    try {
+      callStt?.destroy()
+    } catch (e: Exception) {
+      Log.e(TAG, "Error destroying STT", e)
+    }
+    try {
+      if (receiverRegistered) {
+        unregisterReceiver(callEndedReceiver)
+        receiverRegistered = false
+      }
+    } catch (e: Exception) {
+      Log.e(TAG, "Error unregistering receiver", e)
+    }
+    try {
+      handler.removeCallbacksAndMessages(null)
+    } catch (e: Exception) {
+      Log.e(TAG, "Error removing callbacks", e)
+    }
   }
 }

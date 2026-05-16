@@ -58,7 +58,11 @@ class CallMonitorService : Service() {
         }
       }
     }
-    telephonyManager?.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
+    try {
+      telephonyManager?.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
+    } catch (e: Exception) {
+      Log.e(TAG, "Error starting phone state listener", e)
+    }
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -69,7 +73,11 @@ class CallMonitorService : Service() {
 
   override fun onDestroy() {
     super.onDestroy()
-    telephonyManager?.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE)
+    try {
+      telephonyManager?.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE)
+    } catch (e: Exception) {
+      Log.e(TAG, "Error stopping phone state listener", e)
+    }
   }
 
   private fun createNotificationChannel() {

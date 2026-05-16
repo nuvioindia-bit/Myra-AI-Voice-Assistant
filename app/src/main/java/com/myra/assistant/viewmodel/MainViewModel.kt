@@ -235,79 +235,111 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
   }
 
   private fun volumeUp(): String {
-    val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, 0)
-    return "Volume increased"
+    return try {
+      val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+      audioManager?.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, 0)
+      "Volume increased"
+    } catch (e: Exception) {
+      Log.e(TAG, "Error adjusting volume", e)
+      "Failed to adjust volume"
+    }
   }
 
   private fun volumeDown(): String {
-    val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_LOWER, 0)
-    return "Volume decreased"
+    return try {
+      val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+      audioManager?.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_LOWER, 0)
+      "Volume decreased"
+    } catch (e: Exception) {
+      Log.e(TAG, "Error adjusting volume", e)
+      "Failed to adjust volume"
+    }
   }
 
   private fun toggleWifi(enable: Boolean): String {
-    val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-    wifiManager.isWifiEnabled = enable
-    return if (enable) "WiFi turned ON" else "WiFi turned OFF"
+    return try {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        return "WiFi toggle requires system settings on Android 10+"
+      }
+      @Suppress("DEPRECATION")
+      val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+      wifiManager?.isWifiEnabled = enable
+      if (enable) "WiFi turned ON" else "WiFi turned OFF"
+    } catch (e: Exception) {
+      Log.e(TAG, "Error toggling WiFi", e)
+      "Failed to toggle WiFi"
+    }
   }
 
+  @Suppress("DEPRECATION")
   private fun toggleBluetooth(enable: Boolean): String {
-    val adapter = BluetoothAdapter.getDefaultAdapter()
-    return if (adapter != null) {
-      if (enable) {
-        adapter.enable()
-        "Bluetooth turned ON"
+    return try {
+      val adapter = BluetoothAdapter.getDefaultAdapter()
+      if (adapter != null) {
+        if (enable) {
+          adapter.enable()
+          "Bluetooth turned ON"
+        } else {
+          adapter.disable()
+          "Bluetooth turned OFF"
+        }
       } else {
-        adapter.disable()
-        "Bluetooth turned OFF"
+        "Bluetooth not available"
       }
-    } else {
-      "Bluetooth not available"
+    } catch (e: Exception) {
+      Log.e(TAG, "Error toggling Bluetooth", e)
+      "Failed to toggle Bluetooth"
     }
   }
 
   fun acceptCall() {
     try {
-      val telecomManager = context.getSystemService(Context.TELECOM_SERVICE) as TelecomManager
-      telecomManager.acceptRingingCall()
-      _commandResult.value = "Call accepted"
+      val telecomManager = context.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
+      if (telecomManager != null) {
+        telecomManager.acceptRingingCall()
+        _commandResult.value = "Call accepted"
+      } else {
+        _commandResult.value = "Call control not available"
+      }
     } catch (e: Exception) {
       Log.e(TAG, "Error accepting call", e)
-      _commandResult.value = "Failed to accept call"
+      _commandResult.value = "Failed to accept call: ${e.message}"
     }
   }
 
   fun rejectCall() {
     try {
-      val telecomManager = context.getSystemService(Context.TELECOM_SERVICE) as TelecomManager
-      telecomManager.endCall()
-      _commandResult.value = "Call rejected"
+      val telecomManager = context.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
+      if (telecomManager != null) {
+        telecomManager.endCall()
+        _commandResult.value = "Call rejected"
+      } else {
+        _commandResult.value = "Call control not available"
+      }
     } catch (e: Exception) {
       Log.e(TAG, "Error rejecting call", e)
-      _commandResult.value = "Failed to reject call"
+      _commandResult.value = "Failed to reject call: ${e.message}"
     }
   }
 
   private fun resolveContactNumber(name: String): String? {
-    val uri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI
-    val projection = arrayOf(
-      ContactsContract.CommonDataKinds.Phone.NUMBER,
-      ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME
-    )
-    val selection = "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} LIKE ?"
-    val args = arrayOf("%$name%")
-    var cursor: Cursor? = null
-    try {
-      cursor = contentResolver.query(uri, projection, selection, args, null)
-      cursor?.use {
+    return try {
+      val uri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI
+      val projection = arrayOf(
+        ContactsContract.CommonDataKinds.Phone.NUMBER,
+        ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME
+      )
+      val selection = "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} LIKE ?"
+      val args = arrayOf("%$name%")
+      contentResolver.query(uri, projection, selection, args, null)?.use {
         if (it.moveToFirst()) {
-          return it.getString(it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER))
-        }
+          val idx = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+          if (idx >= 0) it.getString(idx) else null
+        } else null
       }
     } catch (e: Exception) {
       Log.e(TAG, "Error resolving contact", e)
+      null
     }
-    return null
   }
 }
