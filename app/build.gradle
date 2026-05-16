@@ -3,6 +3,13 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
+// local.properties se API key paro
+def localProps = new Properties()
+def localPropsFile = rootProject.file("local.properties")
+if (localPropsFile.exists()) {
+    localPropsFile.withInputStream { localProps.load(it) }
+}
+
 android {
     namespace 'com.myra.assistant'
     compileSdk 36
@@ -13,6 +20,10 @@ android {
         targetSdk 36
         versionCode 1
         versionName "1.0.0"
+
+        // API key BuildConfig mein inject karo (local.properties ya env variable se)
+        buildConfigField "String", "GEMINI_API_KEY",
+            "\"${localProps.getProperty('GEMINI_API_KEY', System.getenv('GEMINI_API_KEY') ?: '')}\""
     }
 
     buildTypes {
@@ -39,6 +50,7 @@ android {
 
     buildFeatures {
         viewBinding true
+        buildConfig true
     }
 }
 

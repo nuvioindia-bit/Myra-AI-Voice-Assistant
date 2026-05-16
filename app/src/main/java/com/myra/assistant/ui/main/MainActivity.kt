@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import com.myra.assistant.BuildConfig
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -297,7 +298,7 @@ class MainActivity : AppCompatActivity() {
           }
         }
       }
-      val apiKey = prefs.getString("api_key", "") ?: ""
+      val apiKey = BuildConfig.GEMINI_API_KEY
       if (apiKey.isBlank()) {
         statusText.text = getString(R.string.api_key_required)
       } else {
@@ -557,7 +558,7 @@ class MainActivity : AppCompatActivity() {
   override fun onResume() {
     super.onResume()
     try {
-      val apiKey = prefs.getString("api_key", "") ?: ""
+      val apiKey = BuildConfig.GEMINI_API_KEY
       if (apiKey.isNotBlank() && !geminiLive.isConnected) {
         geminiLive.connect()
       }

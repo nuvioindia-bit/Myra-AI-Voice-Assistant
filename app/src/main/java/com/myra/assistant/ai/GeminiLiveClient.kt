@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.util.Base64
 import android.util.Log
+import com.myra.assistant.BuildConfig
 import kotlinx.coroutines.*
 import okhttp3.*
 import okhttp3.WebSocket
@@ -18,9 +19,9 @@ class GeminiLiveClient(
 
   companion object {
     const val TAG = "GeminiLiveClient"
-    const val SESSION_RENEW_AFTER_MS = 540_000L // 9 minutes
-    const val KEEPALIVE_INTERVAL_MS = 8_000L    // 8 seconds
-    const val RECONNECT_DELAY_MS = 3_000L       // 3 seconds
+    const val SESSION_RENEW_AFTER_MS = 540_000L
+    const val KEEPALIVE_INTERVAL_MS = 8_000L
+    const val RECONNECT_DELAY_MS = 3_000L
   }
 
   private val client = OkHttpClient.Builder()
@@ -43,15 +44,18 @@ class GeminiLiveClient(
     private set
   private var isSpeaking = false
   private val silentPcm: ByteArray by lazy {
-    ByteArray(3200) { 0 } // 16000Hz, 16-bit, 100ms of silence
+    ByteArray(3200) { 0 }
   }
 
   fun connect() {
     if (isConnected) return
-    val apiKey = prefs.getString("api_key", "") ?: ""
-    if (apiKey.isBlank()) {
-      return
-    }
+    // BuildConfig se API key lo — local.properties ya GitHub Secret se aata hai
+    val apiKey = BuildConfig.GEMINI_API_KEY.takeIf { it.isNotBlank() }
+      ?: run {
+        Log.w(TAG, "GEMINI_API_KEY not set in BuildConfig")
+        onError?.invoke("API Key missing — add GEMINI_API_KEY to local.properties")
+        return
+      }
 
     val model = prefs.getString("gemini_model", "models/gemini-2.5-flash-native-audio-preview-12-2025")
       ?: "models/gemini-2.5-flash-native-audio-preview-12-2025"
