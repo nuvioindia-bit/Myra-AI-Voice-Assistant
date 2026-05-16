@@ -5,7 +5,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import com.myra.assistant.BuildConfig
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -26,6 +25,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.myra.assistant.BuildConfig
 import com.myra.assistant.R
 import com.myra.assistant.ai.AudioEngine
 import com.myra.assistant.ai.CommandParser
@@ -106,24 +106,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     try {
-      checkPermissions()
-    } catch (e: Exception) {
-      Log.e(TAG, "Error checking permissions", e)
-    }
-
-    try {
-      setupAudioEngine()
-    } catch (e: Exception) {
-      Log.e(TAG, "Error setting up audio engine", e)
-    }
-
-    try {
-      setupGeminiLive()
-    } catch (e: Exception) {
-      Log.e(TAG, "Error setting up Gemini", e)
-    }
-
-    try {
       setupChat()
     } catch (e: Exception) {
       Log.e(TAG, "Error setting up chat", e)
@@ -141,10 +123,13 @@ class MainActivity : AppCompatActivity() {
       Log.e(TAG, "Error setting up click listeners", e)
     }
 
+    // Permissions check karo — grant hone ke baad services start hongi
     try {
-      startService(Intent(this, CallMonitorService::class.java))
+      checkAndRequestPermissions()
     } catch (e: Exception) {
-      Log.e(TAG, "Error starting CallMonitorService", e)
+      Log.e(TAG, "Error checking permissions", e)
+      // Permission check fail hone par bhi app chalti rahe
+      postPermissionsSetup()
     }
 
     try {
@@ -188,13 +173,14 @@ class MainActivity : AppCompatActivity() {
     timeText = findViewById(R.id.timeText)
   }
 
-  private fun checkPermissions() {
+  private fun checkAndRequestPermissions() {
     val permissions = mutableListOf(
       Manifest.permission.RECORD_AUDIO,
       Manifest.permission.CALL_PHONE,
       Manifest.permission.READ_CONTACTS,
       Manifest.permission.READ_PHONE_STATE,
-      Manifest.permission.SEND_SMS
+      Manifest.permission.SEND_SMS,
+      Manifest.permission.RECEIVE_SMS
     )
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
       permissions.add(Manifest.permission.POST_NOTIFICATIONS)
@@ -206,7 +192,42 @@ class MainActivity : AppCompatActivity() {
       ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
     }
     if (needed.isNotEmpty()) {
+      // Permission dialog dikhao — result milne par postPermissionsSetup() call hogi
       ActivityCompat.requestPermissions(this, needed.toTypedArray(), PERMISSIONS_REQUEST_CODE)
+    } else {
+      // Sab permissions pehle se grant hain — direct setup karo
+      postPermissionsSetup()
+    }
+  }
+
+  override fun onRequestPermissionsResult(
+    requestCode: Int,
+    permissions: Array<out String>,
+    grantResults: IntArray
+  ) {
+    super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    if (requestCode == PERMISSIONS_REQUEST_CODE) {
+      // Permission ka result aaya — ab setup karo (chahe deny ho ya grant)
+      postPermissionsSetup()
+    }
+  }
+
+  // Permissions ke baad safe setup — AudioRecord tab banta hai jab RECORD_AUDIO grant ho
+  private fun postPermissionsSetup() {
+    try {
+      setupAudioEngine()
+    } catch (e: Exception) {
+      Log.e(TAG, "Error setting up audio engine", e)
+    }
+    try {
+      setupGeminiLive()
+    } catch (e: Exception) {
+      Log.e(TAG, "Error setting up Gemini", e)
+    }
+    try {
+      startService(Intent(this, CallMonitorService::class.java))
+    } catch (e: Exception) {
+      Log.e(TAG, "Error starting CallMonitorService", e)
     }
   }
 
@@ -245,7 +266,8 @@ class MainActivity : AppCompatActivity() {
       geminiLive.onSetupComplete = {
         runOnUiThread {
           try {
-            audioEngine.start()
+            // Context pass karo — AudioRecord sirf tab start hoga jab RECORD_AUDIO granted ho
+            audioEngine.start(this@MainActivity)
             statusText.text = getString(R.string.connected_tap_to_speak)
           } catch (e: Exception) {
             Log.e(TAG, "Error on setup complete", e)
@@ -559,7 +581,7 @@ class MainActivity : AppCompatActivity() {
     super.onResume()
     try {
       val apiKey = BuildConfig.GEMINI_API_KEY
-      if (apiKey.isNotBlank() && !geminiLive.isConnected) {
+      if (apiKey.isNotBlank() && ::geminiLive.isInitialized && !geminiLive.isConnected) {
         geminiLive.connect()
       }
     } catch (e: Exception) {
@@ -579,12 +601,12 @@ class MainActivity : AppCompatActivity() {
   override fun onDestroy() {
     super.onDestroy()
     try {
-      geminiLive.disconnect()
+      if (::geminiLive.isInitialized) geminiLive.disconnect()
     } catch (e: Exception) {
       Log.e(TAG, "Error disconnecting Gemini", e)
     }
     try {
-      audioEngine.stop()
+      if (::audioEngine.isInitialized) audioEngine.stop()
     } catch (e: Exception) {
       Log.e(TAG, "Error stopping audio engine", e)
     }
