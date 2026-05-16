@@ -2,6 +2,7 @@ package com.myra.assistant.viewmodel
 
 import android.app.Application
 import android.bluetooth.BluetoothAdapter
+import android.os.Build
 import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
