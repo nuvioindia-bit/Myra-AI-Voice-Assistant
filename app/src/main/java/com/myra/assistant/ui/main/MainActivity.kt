@@ -358,9 +358,9 @@ class MainActivity : AppCompatActivity() {
     handler.postDelayed({ updateSystemInfo() }, 30000)
   }
 
-  override fun onNewIntent(intent: Intent?) {
+  override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)
-    if (intent?.getBooleanExtra("INCOMING_CALL", false) == true) {
+    if (intent.getBooleanExtra("INCOMING_CALL", false)) {
       val callerName = intent.getStringExtra("CALLER_NAME") ?: "Unknown"
       announceCall(callerName)
     }
