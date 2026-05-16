@@ -152,18 +152,18 @@ class MainActivity : AppCompatActivity() {
       Log.e(TAG, "Error handling incoming call intent", e)
     }
 
-    // "Hey Myra" wake word se trigger hua? Auto-activate listening
+    // "Hey Myra" wake word se trigger hua? Sirf app open karo — mic user khud press kare
     try {
       if (intent.getBooleanExtra("WAKE_WORD_TRIGGERED", false)) {
-        Log.d(TAG, "Wake word triggered — auto activating")
+        Log.d(TAG, "Wake word triggered — app opened, waiting for user mic press")
+        // Sirf Gemini pre-connect karo agar connected nahi hai (faster response)
         handler.postDelayed({
           try {
-            if (::audioEngine.isInitialized) audioEngine.start(this@MainActivity)
-            if (::geminiLive.isInitialized && !geminiLive.isConnected) geminiLive.connect()
-            setActiveMode(true)
-            statusText.text = "Hey! I'm listening..."
-          } catch (e: Exception) { Log.e(TAG, "Wake word activation error", e) }
-        }, 300)
+            if (::geminiLive.isInitialized && !geminiLive.isConnected) {
+              geminiLive.connect()
+            }
+          } catch (e: Exception) { Log.e(TAG, "Wake word pre-connect error", e) }
+        }, 200)
       }
     } catch (e: Exception) {
       Log.e(TAG, "Error handling wake word intent", e)
@@ -589,8 +589,20 @@ class MainActivity : AppCompatActivity() {
       showRedOverlay(active)
       if (active) {
         orbView.setState(OrbAnimationView.State.ACTIVE)
+        // AudioEngine start karo — mic recording shuru
+        if (::audioEngine.isInitialized) {
+          audioEngine.start(this@MainActivity)
+        }
+        // Gemini connected nahi? Connect karo
+        if (::geminiLive.isInitialized && !geminiLive.isConnected) {
+          geminiLive.connect()
+        }
+        if (::geminiLive.isInitialized && geminiLive.isSetupComplete) {
+          statusText.text = "Listening..."
+        }
       } else {
         orbView.setState(OrbAnimationView.State.IDLE)
+        statusText.text = getString(R.string.tap_to_speak)
       }
     } catch (e: Exception) {
       Log.e(TAG, "Error setting active mode", e)
@@ -644,15 +656,12 @@ class MainActivity : AppCompatActivity() {
         announceCall(callerName)
       }
       if (intent.getBooleanExtra("WAKE_WORD_TRIGGERED", false)) {
-        Log.d(TAG, "Wake word triggered in onNewIntent")
+        Log.d(TAG, "Wake word triggered in onNewIntent — pre-connecting Gemini")
         handler.postDelayed({
           try {
-            if (::audioEngine.isInitialized) audioEngine.start(this@MainActivity)
             if (::geminiLive.isInitialized && !geminiLive.isConnected) geminiLive.connect()
-            setActiveMode(true)
-            statusText.text = "Hey! I'm listening..."
-          } catch (e: Exception) { Log.e(TAG, "Wake word activation error", e) }
-        }, 300)
+          } catch (e: Exception) { Log.e(TAG, "Wake word pre-connect error", e) }
+        }, 200)
       }
     } catch (e: Exception) {
       Log.e(TAG, "Error in onNewIntent", e)
