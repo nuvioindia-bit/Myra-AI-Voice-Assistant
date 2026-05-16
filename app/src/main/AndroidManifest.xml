@@ -94,8 +94,7 @@
     <service
       android:name=".service.WakeWordService"
       android:exported="false"
-      android:foregroundServiceType="microphone"
-      android:description="Listens for 'Hey Myra' wake word even on lock screen" />
+      android:foregroundServiceType="microphone" />
 
     <receiver
       android:name=".service.PowerButtonReceiver"
