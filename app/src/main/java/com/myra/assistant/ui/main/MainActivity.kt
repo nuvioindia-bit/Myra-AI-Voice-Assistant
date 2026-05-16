@@ -152,6 +152,23 @@ class MainActivity : AppCompatActivity() {
       Log.e(TAG, "Error handling incoming call intent", e)
     }
 
+    // "Hey Myra" wake word se trigger hua? Auto-activate listening
+    try {
+      if (intent.getBooleanExtra("WAKE_WORD_TRIGGERED", false)) {
+        Log.d(TAG, "Wake word triggered — auto activating")
+        handler.postDelayed({
+          try {
+            if (::audioEngine.isInitialized) audioEngine.start(this@MainActivity)
+            if (::geminiLive.isInitialized && !geminiLive.isConnected) geminiLive.connect()
+            setActiveMode(true)
+            statusText.text = "Hey! I'm listening..."
+          } catch (e: Exception) { Log.e(TAG, "Wake word activation error", e) }
+        }, 300)
+      }
+    } catch (e: Exception) {
+      Log.e(TAG, "Error handling wake word intent", e)
+    }
+
     try {
       updateSystemInfo()
     } catch (e: Exception) {
@@ -212,7 +229,7 @@ class MainActivity : AppCompatActivity() {
     }
   }
 
-  // Permissions ke baad safe setup — AudioRecord tab banta hai jab RECORD_AUDIO grant ho
+  // Permissions ke baad safe setup — services init karo, audio mic click pe start hogi
   private fun postPermissionsSetup() {
     try {
       setupAudioEngine()
@@ -221,6 +238,12 @@ class MainActivity : AppCompatActivity() {
     }
     try {
       setupGeminiLive()
+      // Auto-connect try karo agar key available hai
+      val apiKey = BuildConfig.GEMINI_API_KEY
+      val manualKey = prefs.getString("api_key", "") ?: ""
+      if ((apiKey.isNotBlank() || manualKey.isNotBlank()) && ::geminiLive.isInitialized) {
+        geminiLive.connect()
+      }
     } catch (e: Exception) {
       Log.e(TAG, "Error setting up Gemini", e)
     }
@@ -228,6 +251,16 @@ class MainActivity : AppCompatActivity() {
       startService(Intent(this, CallMonitorService::class.java))
     } catch (e: Exception) {
       Log.e(TAG, "Error starting CallMonitorService", e)
+    }
+    // WakeWordService bhi start karo — "Hey Myra" lock screen detection
+    try {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        startForegroundService(Intent(this, com.myra.assistant.service.WakeWordService::class.java))
+      } else {
+        startService(Intent(this, com.myra.assistant.service.WakeWordService::class.java))
+      }
+    } catch (e: Exception) {
+      Log.e(TAG, "Error starting WakeWordService", e)
     }
   }
 
@@ -266,11 +299,29 @@ class MainActivity : AppCompatActivity() {
       geminiLive.onSetupComplete = {
         runOnUiThread {
           try {
-            // Context pass karo — AudioRecord sirf tab start hoga jab RECORD_AUDIO granted ho
-            audioEngine.start(this@MainActivity)
-            statusText.text = getString(R.string.connected_tap_to_speak)
+            Log.d(TAG, "Gemini setup complete — ready for audio")
+            // Agar user pehle se listening mode mein hai, status update karo
+            if (isActive) {
+              statusText.text = "Listening..."
+            } else {
+              statusText.text = getString(R.string.connected_tap_to_speak)
+            }
           } catch (e: Exception) {
             Log.e(TAG, "Error on setup complete", e)
+          }
+        }
+      }
+
+      geminiLive.onError = { error ->
+        runOnUiThread {
+          try {
+            Log.e(TAG, "Gemini error: $error")
+            Toast.makeText(this@MainActivity, error, Toast.LENGTH_LONG).show()
+            statusText.text = "Error: $error"
+            isActive = false
+            orbView.setState(OrbAnimationView.State.IDLE)
+          } catch (e: Exception) {
+            Log.e(TAG, "Error displaying error", e)
           }
         }
       }
@@ -304,24 +355,16 @@ class MainActivity : AppCompatActivity() {
           audioEngine.setSuppressed(false)
           runOnUiThread {
             flushTranscripts()
-            orbView.setState(OrbAnimationView.State.IDLE)
+            if (!isActive) orbView.setState(OrbAnimationView.State.IDLE)
           }
         } catch (e: Exception) {
           Log.e(TAG, "Error on turn complete", e)
         }
       }
-      geminiLive.onError = { error ->
-        runOnUiThread {
-          try {
-            Toast.makeText(this@MainActivity, error, Toast.LENGTH_SHORT).show()
-            statusText.text = getString(R.string.error_check_settings)
-          } catch (e: Exception) {
-            Log.e(TAG, "Error displaying error", e)
-          }
-        }
-      }
+      // onError pehle se define hai (upar)
       val apiKey = BuildConfig.GEMINI_API_KEY
-      if (apiKey.isBlank()) {
+      val manualKey = prefs.getString("api_key", "") ?: ""
+      if (apiKey.isBlank() && manualKey.isBlank()) {
         statusText.text = getString(R.string.api_key_required)
       } else {
         geminiLive.connect()
@@ -368,17 +411,45 @@ class MainActivity : AppCompatActivity() {
           audioEngine.setMuted(false)
           micButton.setImageResource(android.R.drawable.ic_btn_speak_now)
           statusText.text = getString(R.string.tap_to_speak)
-        } else {
-          isActive = !isActive
-          if (isActive) {
-            orbView.setState(OrbAnimationView.State.ACTIVE)
-            statusText.text = "Listening..."
-            showRedOverlay(true)
-          } else {
-            orbView.setState(OrbAnimationView.State.IDLE)
-            statusText.text = getString(R.string.tap_to_speak)
-            showRedOverlay(false)
+          return@setOnClickListener
+        }
+
+        // Sabse pehle toggle karo — taake audio chunks capture hone lage
+        isActive = !isActive
+
+        if (isActive) {
+          // STEP 1: Audio engine start karo (isActive already true hai)
+          if (::audioEngine.isInitialized) {
+            audioEngine.start(this@MainActivity)
           }
+
+          // STEP 2: Gemini connected? Agar nahi to connect karo
+          if (::geminiLive.isInitialized) {
+            if (!geminiLive.isConnected) {
+              val apiKey = BuildConfig.GEMINI_API_KEY
+              val manualKey = prefs.getString("api_key", "") ?: ""
+              if (apiKey.isBlank() && manualKey.isBlank()) {
+                statusText.text = "API Key required — Go to Settings"
+                Toast.makeText(this, "Add Gemini API Key in Settings", Toast.LENGTH_LONG).show()
+                isActive = false
+                return@setOnClickListener
+              }
+              statusText.text = "Connecting to MYRA..."
+              geminiLive.connect()
+            } else if (!geminiLive.isSetupComplete) {
+              statusText.text = "MYRA connected — waiting for setup..."
+            } else {
+              statusText.text = "Listening..."
+            }
+          }
+
+          orbView.setState(OrbAnimationView.State.ACTIVE)
+          showRedOverlay(true)
+        } else {
+          // Band karo
+          orbView.setState(OrbAnimationView.State.IDLE)
+          statusText.text = getString(R.string.tap_to_speak)
+          showRedOverlay(false)
         }
       } catch (e: Exception) {
         Log.e(TAG, "Error on mic click", e)
@@ -572,6 +643,17 @@ class MainActivity : AppCompatActivity() {
         val callerName = intent.getStringExtra("CALLER_NAME") ?: "Unknown"
         announceCall(callerName)
       }
+      if (intent.getBooleanExtra("WAKE_WORD_TRIGGERED", false)) {
+        Log.d(TAG, "Wake word triggered in onNewIntent")
+        handler.postDelayed({
+          try {
+            if (::audioEngine.isInitialized) audioEngine.start(this@MainActivity)
+            if (::geminiLive.isInitialized && !geminiLive.isConnected) geminiLive.connect()
+            setActiveMode(true)
+            statusText.text = "Hey! I'm listening..."
+          } catch (e: Exception) { Log.e(TAG, "Wake word activation error", e) }
+        }, 300)
+      }
     } catch (e: Exception) {
       Log.e(TAG, "Error in onNewIntent", e)
     }
@@ -581,7 +663,8 @@ class MainActivity : AppCompatActivity() {
     super.onResume()
     try {
       val apiKey = BuildConfig.GEMINI_API_KEY
-      if (apiKey.isNotBlank() && ::geminiLive.isInitialized && !geminiLive.isConnected) {
+      val manualKey = prefs.getString("api_key", "") ?: ""
+      if ((apiKey.isNotBlank() || manualKey.isNotBlank()) && ::geminiLive.isInitialized && !geminiLive.isConnected) {
         geminiLive.connect()
       }
     } catch (e: Exception) {

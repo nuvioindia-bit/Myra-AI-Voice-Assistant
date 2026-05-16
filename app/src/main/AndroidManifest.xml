@@ -50,7 +50,9 @@
       android:exported="true"
       android:launchMode="singleTop"
       android:screenOrientation="portrait"
-      android:windowSoftInputMode="adjustResize">
+      android:windowSoftInputMode="adjustResize"
+      android:showWhenLocked="true"
+      android:turnScreenOn="true">
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />
         <category android:name="android.intent.category.LAUNCHER" />
@@ -88,6 +90,12 @@
         android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
         android:value="MYRA overlay assistant" />
     </service>
+
+    <service
+      android:name=".service.WakeWordService"
+      android:exported="false"
+      android:foregroundServiceType="microphone"
+      android:description="Listens for 'Hey Myra' wake word even on lock screen" />
 
     <receiver
       android:name=".service.PowerButtonReceiver"

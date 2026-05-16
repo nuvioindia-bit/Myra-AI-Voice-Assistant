@@ -42,20 +42,32 @@ class GeminiLiveClient(
 
   var isConnected = false
     private set
+  var isSetupComplete = false
+    private set
   private var isSpeaking = false
-  private val silentPcm: ByteArray by lazy {
-    ByteArray(3200) { 0 }
-  }
+  private val silentPcm: ByteArray by lazy { ByteArray(3200) { 0 } }
+  // Buffer audio chunks jab tak setup complete nahi hota
+  private val audioBuffer = java.util.ArrayList<ByteArray>()
+  private var bufferAudio = false
 
   fun connect() {
-    if (isConnected) return
-    // BuildConfig se API key lo — local.properties ya GitHub Secret se aata hai
-    val apiKey = BuildConfig.GEMINI_API_KEY.takeIf { it.isNotBlank() }
-      ?: run {
-        Log.w(TAG, "GEMINI_API_KEY not set in BuildConfig")
-        onError?.invoke("API Key missing — add GEMINI_API_KEY to local.properties")
-        return
-      }
+    if (isConnected) {
+      Log.d(TAG, "Already connected")
+      return
+    }
+    isSetupComplete = false
+    bufferAudio = true
+    audioBuffer.clear()
+    // Priority: manual key (SharedPreferences) > BuildConfig > error
+    val manualKey = prefs.getString("api_key", null)?.takeIf { it.isNotBlank() }
+    val buildKey = BuildConfig.GEMINI_API_KEY.takeIf { it.isNotBlank() }
+    val apiKey = manualKey ?: buildKey
+    if (apiKey == null) {
+      Log.w(TAG, "No API key found. Set in Settings or local.properties")
+      onError?.invoke("API Key missing — go to Settings and add your Gemini key")
+      return
+    }
+    Log.d(TAG, "Connecting with ${if (manualKey != null) "manual key" else "BuildConfig key"}")
 
     val model = prefs.getString("gemini_model", "models/gemini-2.5-flash-native-audio-preview-12-2025")
       ?: "models/gemini-2.5-flash-native-audio-preview-12-2025"
@@ -85,18 +97,21 @@ class GeminiLiveClient(
       override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
         Log.d(TAG, "WebSocket closing: $code / $reason")
         isConnected = false
+        isSetupComplete = false
       }
 
       override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
         Log.d(TAG, "WebSocket closed: $code / $reason")
         isConnected = false
+        isSetupComplete = false
         scheduleReconnect()
       }
 
       override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-        Log.e(TAG, "WebSocket failure", t)
+        Log.e(TAG, "WebSocket failure: ${t.message}")
         isConnected = false
-        onError?.invoke("Connection error: ${t.message}")
+        isSetupComplete = false
+        onError?.invoke("Connection failed: ${t.message}")
         scheduleReconnect()
       }
     })
@@ -137,7 +152,14 @@ class GeminiLiveClient(
       val json = JSONObject(text)
       when {
         json.has("setupComplete") -> {
-          Log.d(TAG, "Setup complete")
+          Log.d(TAG, "Setup complete — flushing buffered audio")
+          isSetupComplete = true
+          bufferAudio = false
+          // Pehle buffer kiye hue chunks bhejo
+          for (chunk in audioBuffer) {
+            sendRawAudioChunk(chunk)
+          }
+          audioBuffer.clear()
           onSetupComplete?.invoke()
         }
         json.has("serverContent") -> {
@@ -186,19 +208,39 @@ class GeminiLiveClient(
   }
 
   fun sendAudioChunk(pcmData: ByteArray) {
-    if (!isConnected || isSpeaking) return
-    val base64 = Base64.encodeToString(pcmData, Base64.NO_WRAP)
-    val msg = JSONObject().apply {
-      put("realtime_input", JSONObject().apply {
-        put("media_chunks", JSONArray().apply {
-          put(JSONObject().apply {
-            put("mime_type", "audio/pcm;rate=16000")
-            put("data", base64)
+    if (!isConnected) return
+    // Agar setup complete nahi hai, buffer mein rakh lo
+    if (!isSetupComplete) {
+      if (bufferAudio) {
+        audioBuffer.add(pcmData.copyOf())
+        // Buffer bada hone se roko — max 50 chunks (~3 sec)
+        if (audioBuffer.size > 50) audioBuffer.removeAt(0)
+      }
+      return
+    }
+    if (isSpeaking) return
+    sendRawAudioChunk(pcmData)
+  }
+
+  private fun sendRawAudioChunk(pcmData: ByteArray) {
+    if (!isConnected) return
+    try {
+      val base64 = Base64.encodeToString(pcmData, Base64.NO_WRAP)
+      val msg = JSONObject().apply {
+        put("realtime_input", JSONObject().apply {
+          put("media_chunks", JSONArray().apply {
+            put(JSONObject().apply {
+              put("mime_type", "audio/pcm;rate=16000")
+              put("data", base64)
+            })
           })
         })
-      })
+      }
+      val sent = webSocket?.send(msg.toString()) ?: false
+      if (!sent) Log.w(TAG, "WebSocket send failed")
+    } catch (e: Exception) {
+      Log.e(TAG, "Error sending audio chunk", e)
     }
-    webSocket?.send(msg.toString())
   }
 
   fun sendText(text: String) {
@@ -233,6 +275,9 @@ class GeminiLiveClient(
 
   fun disconnect() {
     isConnected = false
+    isSetupComplete = false
+    bufferAudio = false
+    audioBuffer.clear()
     sessionJob?.cancel()
     keepaliveJob?.cancel()
     webSocket?.close(1000, "Disconnecting")

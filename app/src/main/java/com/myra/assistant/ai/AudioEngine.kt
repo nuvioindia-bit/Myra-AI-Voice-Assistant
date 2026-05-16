@@ -207,6 +207,8 @@ class AudioEngine {
   fun setMuted(muted: Boolean) { isMuted = muted }
   fun setSuppressed(suppressed: Boolean) { isSuppressed = suppressed }
 
+  fun isRunning(): Boolean = isRecording || isPlaying
+
   private fun calculateRms(data: ByteArray): Float {
     if (data.size < 2) return 0f
     var sum = 0.0

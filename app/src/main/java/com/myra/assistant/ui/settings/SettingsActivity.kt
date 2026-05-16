@@ -34,7 +34,7 @@ class SettingsActivity : AppCompatActivity() {
     const val TAG = "SettingsActivity"
   }
 
-  // API Key field hataya — ab BuildConfig se aata hai
+  private lateinit var apiKeyInput: EditText
   private lateinit var userNameInput: EditText
   private lateinit var modelSpinner: Spinner
   private lateinit var voiceSpinner: Spinner
@@ -43,7 +43,6 @@ class SettingsActivity : AppCompatActivity() {
   private lateinit var addPrimeBtn: Button
   private lateinit var saveBtn: Button
   private lateinit var accessibilityStatus: TextView
-  private lateinit var apiKeyStatus: TextView
   private lateinit var backBtn: ImageButton
 
   private lateinit var prefs: android.content.SharedPreferences
@@ -68,6 +67,7 @@ class SettingsActivity : AppCompatActivity() {
   }
 
   private fun initViews() {
+    apiKeyInput      = findViewById(R.id.apiKeyInput)
     userNameInput    = findViewById(R.id.userNameInput)
     modelSpinner     = findViewById(R.id.modelSpinner)
     voiceSpinner     = findViewById(R.id.voiceSpinner)
@@ -78,17 +78,17 @@ class SettingsActivity : AppCompatActivity() {
     accessibilityStatus = findViewById(R.id.accessibilityStatus)
     backBtn          = findViewById(R.id.backBtn)
 
-    // API key status view (apiKeyInput field replace — ab status show karega)
-    apiKeyStatus = try {
-      findViewById(R.id.apiKeyInput)
-    } catch (e: Exception) {
-      TextView(this)
-    }
+    // Load saved manual key into input (blank if using BuildConfig only)
+    val savedKey = prefs.getString("api_key", "") ?: ""
+    apiKeyInput.setText(savedKey)
 
-    // API key status dikhao — key set hai ya nahi
-    val keySet = BuildConfig.GEMINI_API_KEY.isNotBlank()
-    apiKeyStatus.text = if (keySet) "✅ Gemini API Key: Set (via build config)" else "❌ Gemini API Key: NOT SET"
-    apiKeyStatus.isEnabled = false
+    // Hint update: show if BuildConfig key is available as fallback
+    val buildKeySet = BuildConfig.GEMINI_API_KEY.isNotBlank()
+    if (buildKeySet && savedKey.isBlank()) {
+      apiKeyInput.hint = "Using key from build config (optional override)"
+    } else {
+      apiKeyInput.hint = "Enter Gemini API Key"
+    }
 
     val models = listOf(
       "Native Audio (Human Voice)",
@@ -225,7 +225,9 @@ class SettingsActivity : AppCompatActivity() {
           put("number", contact.number)
         })
       }
+      val apiKey = apiKeyInput.text.toString().trim()
       prefs.edit().apply {
+        putString("api_key",             apiKey)  // blank = use BuildConfig fallback
         putString("user_name",           userNameInput.text.toString().trim())
         putString("gemini_model",        modelValues[modelSpinner.selectedItemPosition])
         putString("gemini_voice",        voiceValues[voiceSpinner.selectedItemPosition])
