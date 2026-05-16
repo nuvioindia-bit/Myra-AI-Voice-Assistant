@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="app_name">MYRA</string>
+  <string name="accessibility_service_description">MYRA Accessibility Service helps open and close apps, click UI elements, and type text via voice commands.</string>
+  <string name="call_monitor_description">MYRA Call Monitor detects incoming calls so MYRA can announce them.</string>
+  <string name="overlay_description">MYRA Overlay provides a floating orb for quick access.</string>
+</resources>

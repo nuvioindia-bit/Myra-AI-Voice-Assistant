@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <style name="Theme.Myra" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <item name="android:windowBackground">@color/myra_background</item>
+    <item name="android:statusBarColor">@android:color/transparent</item>
+    <item name="android:navigationBarColor">@color/myra_background</item>
+    <item name="colorPrimary">@color/myra_primary</item>
+    <item name="colorPrimaryVariant">@color/myra_secondary</item>
+    <item name="colorOnPrimary">@color/myra_text_primary</item>
+    <item name="android:textColorPrimary">@color/myra_text_primary</item>
+    <item name="android:editTextColor">@color/myra_text_primary</item>
+    <item name="android:textColorHint">@color/myra_text_hint</item>
+  </style>
+</resources>

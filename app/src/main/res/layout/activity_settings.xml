@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+  xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:app="http://schemas.android.com/apk/res-auto"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  android:background="#050505"
+  android:fillViewport="true">
+
+  <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <!-- Header -->
+    <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:orientation="horizontal"
+      android:gravity="center_vertical"
+      android:layout_marginBottom="24dp">
+      <ImageButton
+        android:id="@+id/backBtn"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:src="@android:drawable/ic_menu_close_clear_cancel"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        app:tint="#FF1744"
+        android:contentDescription="Back" />
+      <TextView
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="SETTINGS"
+        android:textColor="#FF1744"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:fontFamily="sans-serif-black"
+        android:letterSpacing="0.3"
+        android:gravity="center" />
+      <View android:layout_width="40dp" android:layout_height="40dp" />
+    </LinearLayout>
+
+    <!-- API Key -->
+    <TextView
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:text="API Key"
+      android:textColor="#EEEEEE"
+      android:textSize="13sp"
+      android:layout_marginBottom="4dp" />
+    <EditText
+      android:id="@+id/apiKeyInput"
+      android:layout_width="match_parent"
+      android:layout_height="48dp"
+      android:hint="Enter Gemini API Key"
+      android:textColor="#EEEEEE"
+      android:textColorHint="#555555"
+      android:background="@drawable/bg_input_field"
+      android:paddingHorizontal="12dp"
+      android:inputType="textPassword"
+      android:textSize="13sp"
+      android:layout_marginBottom="16dp" />
+
+    <!-- User Name -->
+    <TextView
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:text="Your Name"
+      android:textColor="#EEEEEE"
+      android:textSize="13sp"
+      android:layout_marginBottom="4dp" />
+    <EditText
+      android:id="@+id/userNameInput"
+      android:layout_width="match_parent"
+      android:layout_height="48dp"
+      android:hint="How MYRA addresses you"
+      android:textColor="#EEEEEE"
+      android:textColorHint="#555555"
+      android:background="@drawable/bg_input_field"
+      android:paddingHorizontal="12dp"
+      android:textSize="13sp"
+      android:layout_marginBottom="16dp" />
+
+    <!-- AI Model -->
+    <TextView
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:text="AI Model"
+      android:textColor="#EEEEEE"
+      android:textSize="13sp"
+      android:layout_marginBottom="4dp" />
+    <Spinner
+      android:id="@+id/modelSpinner"
+      android:layout_width="match_parent"
+      android:layout_height="48dp"
+      android:background="@drawable/bg_input_field"
+      android:layout_marginBottom="16dp" />
+
+    <!-- Voice -->
+    <TextView
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:text="Voice"
+      android:textColor="#EEEEEE"
+      android:textSize="13sp"
+      android:layout_marginBottom="4dp" />
+    <Spinner
+      android:id="@+id/voiceSpinner"
+      android:layout_width="match_parent"
+      android:layout_height="48dp"
+      android:background="@drawable/bg_input_field"
+      android:layout_marginBottom="16dp" />
+
+    <!-- Personality -->
+    <TextView
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:text="Personality"
+      android:textColor="#EEEEEE"
+      android:textSize="13sp"
+      android:layout_marginBottom="8dp" />
+    <RadioGroup
+      android:id="@+id/personalityGroup"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:orientation="horizontal"
+      android:layout_marginBottom="16dp">
+      <RadioButton
+        android:id="@+id/radioGf"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="GF Mode"
+        android:textColor="#EEEEEE"
+        android:textSize="12sp" />
+      <RadioButton
+        android:id="@+id/radioProfessional"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="Professional"
+        android:textColor="#EEEEEE"
+        android:textSize="12sp" />
+      <RadioButton
+        android:id="@+id/radioAssistant"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="Assistant"
+        android:textColor="#EEEEEE"
+        android:textSize="12sp" />
+    </RadioGroup>
+
+    <!-- Prime Contacts -->
+    <TextView
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:text="Prime Contacts"
+      android:textColor="#EEEEEE"
+      android:textSize="13sp"
+      android:layout_marginBottom="8dp" />
+    <androidx.recyclerview.widget.RecyclerView
+      android:id="@+id/primeContactsRecycler"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginBottom="8dp"
+      android:nestedScrollingEnabled="false" />
+    <Button
+      android:id="@+id/addPrimeBtn"
+      android:layout_width="wrap_content"
+      android:layout_height="40dp"
+      android:text="+ ADD PRIME CONTACT"
+      android:textColor="#FF1744"
+      android:textSize="12sp"
+      android:background="@drawable/bg_prime_badge"
+      android:layout_marginBottom="16dp" />
+
+    <!-- Accessibility Status -->
+    <TextView
+      android:id="@+id/accessibilityStatus"
+      android:layout_width="match_parent"
+      android:layout_height="48dp"
+      android:text="Accessibility: Checking..."
+      android:textColor="#555555"
+      android:textSize="13sp"
+      android:gravity="center_vertical"
+      android:paddingHorizontal="12dp"
+      android:background="@drawable/bg_input_field"
+      android:layout_marginBottom="24dp"
+      android:clickable="true"
+      android:focusable="true" />
+
+    <!-- Save Button -->
+    <Button
+      android:id="@+id/saveBtn"
+      android:layout_width="match_parent"
+      android:layout_height="52dp"
+      android:text="SAVE SETTINGS"
+      android:textColor="#FFFFFF"
+      android:textSize="14sp"
+      android:textStyle="bold"
+      android:background="@drawable/bg_save_button"
+      android:letterSpacing="0.2" />
+  </LinearLayout>
+</ScrollView>
